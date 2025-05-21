@@ -1,0 +1,162 @@
+/* Main Application Styles */
+QMainWindow {
+    background-color: #f5f5f5;
+}
+
+QWidget {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 10pt;
+    color: #333333;
+}
+
+/* Sidebar Navigation */
+QPushButton {
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    text-align: left;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #34495e;
+}
+
+QPushButton:pressed {
+    background-color: #1abc9c;
+}
+
+/* Tables */
+QTableWidget {
+    background-color: white;
+    alternate-background-color: #f9f9f9;
+    border: 1px solid #dcdcdc;
+    border-radius: 4px;
+    gridline-color: #e0e0e0;
+}
+
+QTableWidget::item {
+    padding: 4px;
+}
+
+QTableWidget::item:selected {
+    background-color: #3498db;
+    color: white;
+}
+
+QHeaderView::section {
+    background-color: #2c3e50;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+/* Stat Boxes on Dashboard */
+.stat-box {
+    background-color: white;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    padding: 10px;
+}
+
+/* Form Elements */
+QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    padding: 6px;
+    background-color: white;
+}
+
+QLineEdit:focus, QTextEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+    border: 1px solid #3498db;
+}
+
+/* Dialog Boxes */
+QDialog {
+    background-color: #f5f5f5;
+}
+
+/* Chart Views */
+QChartView {
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+/* Tabs */
+QTabWidget::pane {
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    background-color: white;
+}
+
+QTabBar::tab {
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-bottom: none;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    padding: 6px 12px;
+    margin-right: 2px;
+}
+
+QTabBar::tab:selected {
+    background-color: white;
+    border-bottom: 1px solid white;
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+    border: none;
+    background-color: #f0f0f0;
+    width: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #bdc3c7;
+    border-radius: 5px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #95a5a6;
+}
+
+/* Labels */
+QLabel[heading="true"] {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+/* Combo Boxes */
+QComboBox {
+    background-color: white;
+    selection-background-color: #3498db;
+    selection-color: white;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 15px;
+    border-left: 1px solid #bdc3c7;
+}
+
+/* Progress Bars */
+QProgressBar {
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    text-align: center;
+    background-color: #ecf0f1;
+}
+
+QProgressBar::chunk {
+    background-color: #2ecc71;
+    width: 10px;
+}
