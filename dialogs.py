@@ -1,18 +1,21 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox,
-                             QPushButton, QTextEdit, QMessageBox)
+                             QPushButton, QTextEdit, QMessageBox, QCheckBox,
+                             QGroupBox, QGridLayout)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from database import DatabaseManager
-from qr_handler import QRHandler
+from enhanced_product_manager import EnhancedProductManager
+from todo_manager import TodoManager
 
 class ProductDialog(QDialog):
     def __init__(self, parent=None, product=None):
         super().__init__(parent)
         self.db = DatabaseManager()
-        self.qr_handler = QRHandler()
+        self.enhanced_manager = EnhancedProductManager(self.db)
+        self.todo_manager = TodoManager(self.db)
         self.product = product
-        self.serial_number = None
+        self.is_editing = product is not None
         self.setup_ui()
     
     def setup_ui(self):
@@ -48,14 +51,24 @@ class ProductDialog(QDialog):
         cat_layout.addWidget(self.cat_input)
         layout.addLayout(cat_layout)
         
-        # Location
-        location_layout = QHBoxLayout()
-        location_label = QLabel('Location:')
-        self.location_input = QComboBox()
-        self.location_input.addItems(['store', 'warehouse', 'assembly'])
-        location_layout.addWidget(location_label)
-        location_layout.addWidget(self.location_input)
-        layout.addLayout(location_layout)
+        # For editing: Additional quantity section
+        if self.is_editing:
+            add_qty_group = QGroupBox('Add Additional Quantity')
+            add_qty_layout = QGridLayout(add_qty_group)
+            
+            add_store_label = QLabel('Add to Store:')
+            self.add_store_qty_input = QSpinBox()
+            self.add_store_qty_input.setMaximum(9999)
+            add_qty_layout.addWidget(add_store_label, 0, 0)
+            add_qty_layout.addWidget(self.add_store_qty_input, 0, 1)
+            
+            add_warehouse_label = QLabel('Add to Warehouse:')
+            self.add_warehouse_qty_input = QSpinBox()
+            self.add_warehouse_qty_input.setMaximum(9999)
+            add_qty_layout.addWidget(add_warehouse_label, 0, 2)
+            add_qty_layout.addWidget(self.add_warehouse_qty_input, 0, 3)
+            
+            layout.addWidget(add_qty_group)
         
         # Prices
         prices_layout = QHBoxLayout()
@@ -76,23 +89,38 @@ class ProductDialog(QDialog):
         prices_layout.addWidget(self.selling_input)
         layout.addLayout(prices_layout)
         
-        # Quantity and Threshold
-        qty_layout = QHBoxLayout()
+        # Quantity Section
+        qty_group = QGroupBox('Inventory Quantities')
+        qty_layout = QGridLayout(qty_group)
         
-        qty_label = QLabel('Quantity:')
-        self.qty_input = QSpinBox()
-        self.qty_input.setMaximum(9999)
+        # Store Quantity
+        store_qty_label = QLabel('Store Quantity:')
+        self.store_qty_input = QSpinBox()
+        self.store_qty_input.setMaximum(9999)
+        qty_layout.addWidget(store_qty_label, 0, 0)
+        qty_layout.addWidget(self.store_qty_input, 0, 1)
         
+        # Warehouse Quantity
+        warehouse_qty_label = QLabel('Warehouse Quantity:')
+        self.warehouse_qty_input = QSpinBox()
+        self.warehouse_qty_input.setMaximum(9999)
+        qty_layout.addWidget(warehouse_qty_label, 0, 2)
+        qty_layout.addWidget(self.warehouse_qty_input, 0, 3)
+        
+        # Reorder Threshold
         threshold_label = QLabel('Reorder Threshold:')
         self.threshold_input = QSpinBox()
         self.threshold_input.setMaximum(999)
         self.threshold_input.setValue(5)
+        qty_layout.addWidget(threshold_label, 1, 0)
+        qty_layout.addWidget(self.threshold_input, 1, 1)
         
-        qty_layout.addWidget(qty_label)
-        qty_layout.addWidget(self.qty_input)
-        qty_layout.addWidget(threshold_label)
-        qty_layout.addWidget(self.threshold_input)
-        layout.addLayout(qty_layout)
+        # QR Code Generation Options
+        self.generate_qr_checkbox = QCheckBox('Generate QR Codes & Barcodes')
+        self.generate_qr_checkbox.setChecked(True)
+        qty_layout.addWidget(self.generate_qr_checkbox, 1, 2, 1, 2)
+        
+        layout.addWidget(qty_group)
         
         # Supplier Info
         supplier_layout = QVBoxLayout()
@@ -121,13 +149,15 @@ class ProductDialog(QDialog):
             self.cat_input.setCurrentText(self.product.category)
             self.purchase_input.setValue(self.product.purchase_price)
             self.selling_input.setValue(self.product.selling_price)
-            self.qty_input.setValue(self.product.quantity)
+            self.store_qty_input.setValue(self.product.store_quantity)
+            self.warehouse_qty_input.setValue(self.product.warehouse_quantity)
             self.threshold_input.setValue(self.product.reorder_threshold)
-            self.supplier_input.setText(self.product.supplier_info)
-            if hasattr(self.product, 'location') and self.product.location:
-                self.location_input.setCurrentText(self.product.location)
-            if hasattr(self.product, 'serial_number') and self.product.serial_number:
-                self.serial_number = self.product.serial_number
+            self.supplier_input.setText(self.product.supplier_info or '')
+            
+            # For editing, disable the main quantity inputs and show current values as read-only
+            self.store_qty_input.setEnabled(False)
+            self.warehouse_qty_input.setEnabled(False)
+            self.generate_qr_checkbox.setChecked(False)  # Default to not generating for edits
     
     def save_product(self):
         # Validate inputs
@@ -147,24 +177,55 @@ class ProductDialog(QDialog):
             'category': self.cat_input.currentText(),
             'purchase_price': self.purchase_input.value(),
             'selling_price': self.selling_input.value(),
-            'quantity': self.qty_input.value(),
             'reorder_threshold': self.threshold_input.value(),
-            'supplier_info': self.supplier_input.toPlainText(),
-            'location': self.location_input.currentText()
+            'supplier_info': self.supplier_input.toPlainText()
         }
         
         try:
             if self.product:  # Editing existing product
+                # Update basic product info
                 product = self.db.update_product(self.product.id, product_data)
+                
+                # Add additional quantities if specified
+                add_store = self.add_store_qty_input.value()
+                add_warehouse = self.add_warehouse_qty_input.value()
+                
+                if add_store > 0 or add_warehouse > 0:
+                    if self.generate_qr_checkbox.isChecked():
+                        updated_product, new_store_items, new_warehouse_items = self.enhanced_manager.add_quantity_to_product(
+                            self.product.id, add_store, add_warehouse
+                        )
+                        QMessageBox.information(self, 'Success', 
+                            f'Added {add_store} store items and {add_warehouse} warehouse items with QR codes!')
+                    else:
+                        # Just update quantities without generating QR codes
+                        updated_data = {
+                            'store_quantity': self.product.store_quantity + add_store,
+                            'warehouse_quantity': self.product.warehouse_quantity + add_warehouse
+                        }
+                        self.db.update_product(self.product.id, updated_data)
+                        QMessageBox.information(self, 'Success', 
+                            f'Added {add_store} store items and {add_warehouse} warehouse items!')
+                
             else:  # Adding new product
-                product = self.db.add_product(product_data)
-                # Generate QR code for new product with serial number
-                qr_path, serial_number = self.qr_handler.generate_qr_code(
-                    product.id, product.name, quantity=product_data['quantity'])
-                self.db.update_product(product.id, {
-                    'qr_code': qr_path,
-                    'serial_number': serial_number
-                })
+                store_qty = self.store_qty_input.value()
+                warehouse_qty = self.warehouse_qty_input.value()
+                
+                if self.generate_qr_checkbox.isChecked() and (store_qty > 0 or warehouse_qty > 0):
+                    product, store_items, warehouse_items = self.enhanced_manager.add_product_with_items(
+                        product_data, store_qty, warehouse_qty
+                    )
+                    QMessageBox.information(self, 'Success', 
+                        f'Product created with {len(store_items)} store items and {len(warehouse_items)} warehouse items with QR codes!')
+                else:
+                    # Add product without individual item tracking
+                    product_data['store_quantity'] = store_qty
+                    product_data['warehouse_quantity'] = warehouse_qty
+                    product = self.db.add_product(product_data)
+                    QMessageBox.information(self, 'Success', 'Product created successfully!')
+            
+            # Check for low stock and create restock tasks if needed
+            self.enhanced_manager.check_and_create_restock_tasks()
             
             self.accept()
         except Exception as e:

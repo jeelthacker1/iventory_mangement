@@ -11,6 +11,8 @@ from qr_handler import QRHandler
 from datetime import datetime, timedelta
 from reports import ReportsWidget
 from charts import ChartWidget
+from repair_ui import RepairTaskWidget
+from todo_ui import TodoWidget
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -50,7 +52,9 @@ class MainWindow(QMainWindow):
             ('Sales', self.show_sales),
             ('Customers', self.show_customers),
             ('Reports', self.show_reports),
-            ('Low Stock', self.show_low_stock)
+            ('Low Stock', self.show_low_stock),
+            ('Repair Tasks', self.show_repair_tasks),
+            ('Todo Tasks', self.show_todo_tasks)
         ]
         
         for text, callback in nav_buttons:
@@ -73,6 +77,8 @@ class MainWindow(QMainWindow):
         self.create_customers_page()
         self.create_reports_page()
         self.create_low_stock_page()
+        self.create_repair_tasks_page()
+        self.create_todo_tasks_page()
         
         # Show dashboard by default
         self.show_dashboard()
@@ -423,7 +429,21 @@ class MainWindow(QMainWindow):
     
     def show_low_stock(self):
         self.stacked_widget.setCurrentIndex(5)
+    
+    def show_repair_tasks(self):
+        self.stacked_widget.setCurrentIndex(6)
+    
+    def show_todo_tasks(self):
+        self.stacked_widget.setCurrentIndex(7)
+    
+    def create_repair_tasks_page(self):
+        repair_widget = RepairTaskWidget(self.db)
+        self.stacked_widget.addWidget(repair_widget)
         self.update_low_stock_table()
+    
+    def create_todo_tasks_page(self):
+        todo_widget = TodoWidget()
+        self.stacked_widget.addWidget(todo_widget)
     
     # Utility methods
     def get_total_products(self):
