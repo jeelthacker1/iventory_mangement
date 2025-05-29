@@ -172,8 +172,23 @@ class DatabaseManager:
         return self.session.query(Product).all()
     
     def get_low_stock_products(self):
+        # Get products where either store quantity is low or total quantity is low
+        return self.session.query(Product).filter(
+            ((Product.store_quantity <= Product.reorder_threshold) |
+             ((Product.store_quantity + Product.warehouse_quantity) <= Product.reorder_threshold))
+        ).all()
+
+    def get_products_needing_assembly(self):
+        # Get products where total quantity (store + warehouse) is below threshold
         return self.session.query(Product).filter(
             (Product.store_quantity + Product.warehouse_quantity) <= Product.reorder_threshold
+        ).all()
+
+    def get_products_needing_restock(self):
+        # Get products where store quantity is low but warehouse has stock
+        return self.session.query(Product).filter(
+            (Product.store_quantity <= Product.reorder_threshold) &
+            (Product.warehouse_quantity > 0)
         ).all()
     
     def add_customer(self, customer_data):

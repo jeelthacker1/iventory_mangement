@@ -474,18 +474,34 @@ class MainWindow(QMainWindow):
         self.inventory_table.setRowCount(len(products))
         
         for row, product in enumerate(products):
+            # Basic product information
             self.inventory_table.setItem(row, 0, QTableWidgetItem(str(product.id)))
             self.inventory_table.setItem(row, 1, QTableWidgetItem(product.name))
-            self.inventory_table.setItem(row, 2, QTableWidgetItem(product.category))
-            self.inventory_table.setItem(row, 3, QTableWidgetItem(str(product.quantity)))
+            self.inventory_table.setItem(row, 2, QTableWidgetItem(product.category or 'Uncategorized'))
+            
+            # Quantity information
+            store_qty = getattr(product, 'store_quantity', 0)
+            warehouse_qty = getattr(product, 'warehouse_quantity', 0)
+            total_qty = store_qty + warehouse_qty
+            
+            # Format quantity display
+            qty_text = f"{total_qty} (S:{store_qty}, W:{warehouse_qty})"
+            qty_item = QTableWidgetItem(qty_text)
+            
+            # Highlight low stock
+            if total_qty <= getattr(product, 'reorder_threshold', 5):
+                qty_item.setBackground(QColor(255, 200, 200))  # Light red for low stock
+            
+            self.inventory_table.setItem(row, 3, qty_item)
+            
+            # Price information
             self.inventory_table.setItem(row, 4, QTableWidgetItem(f"₹{product.purchase_price:.2f}"))
             self.inventory_table.setItem(row, 5, QTableWidgetItem(f"₹{product.selling_price:.2f}"))
             
-            # Add location column
-            location = product.location if hasattr(product, 'location') else 'store'
+            # Location and supplier info
+            location = getattr(product, 'location', 'store')
             self.inventory_table.setItem(row, 6, QTableWidgetItem(location))
-            
-            self.inventory_table.setItem(row, 7, QTableWidgetItem(product.supplier_info))
+            self.inventory_table.setItem(row, 7, QTableWidgetItem(getattr(product, 'supplier_info', '')))
     
     def update_low_stock_table(self):
         products = self.db.get_low_stock_products()
@@ -493,7 +509,8 @@ class MainWindow(QMainWindow):
         
         for row, product in enumerate(products):
             self.low_stock_table.setItem(row, 0, QTableWidgetItem(product.name))
-            self.low_stock_table.setItem(row, 1, QTableWidgetItem(str(product.quantity)))
+            total_qty = product.store_quantity + product.warehouse_quantity
+            self.low_stock_table.setItem(row, 1, QTableWidgetItem(f"{total_qty} (S:{product.store_quantity}, W:{product.warehouse_quantity})"))
             self.low_stock_table.setItem(row, 2, QTableWidgetItem(str(product.reorder_threshold)))
             self.low_stock_table.setItem(row, 3, QTableWidgetItem(product.supplier_info))
             
@@ -685,7 +702,7 @@ class MainWindow(QMainWindow):
                     product = self.db.get_product(product_id)
                     
                     if product:
-                        if product.quantity >= scan_quantity:
+                        if product.store_quantity >= scan_quantity:
                             # Add product to sales table
                             row = self.sales_table.rowCount()
                             self.sales_table.insertRow(row)
@@ -716,15 +733,15 @@ class MainWindow(QMainWindow):
                             # Update total
                             self.update_sales_total()
                             
-                            # Update inventory
-                            product.quantity -= scan_quantity
-                            self.db.update_product(product.id, {'quantity': product.quantity})
+                            # Update inventory - reduce store quantity
+                            product.store_quantity -= scan_quantity
+                            self.db.update_product(product.id, {'store_quantity': product.store_quantity})
                             self.update_inventory_table()
                             
                             QMessageBox.information(self, "Success", f"Added {product.name} to cart.\nSerial Number: {serial_number}")
                         else:
                             QMessageBox.warning(self, "Insufficient Stock", 
-                                              f"Not enough stock available. Current stock: {product.quantity}")
+                                              f"Not enough stock available. Current store stock: {product.store_quantity}")
                     else:
                         QMessageBox.warning(self, "Product Not Found", "Could not find the scanned product.")
                 except Exception as e:

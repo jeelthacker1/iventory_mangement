@@ -204,8 +204,17 @@ class ProductDialog(QDialog):
                             'warehouse_quantity': self.product.warehouse_quantity + add_warehouse
                         }
                         self.db.update_product(self.product.id, updated_data)
-                        QMessageBox.information(self, 'Success', 
-                            f'Added {add_store} store items and {add_warehouse} warehouse items!')
+                        
+                        # Create assembly task if total quantity is below threshold
+                        total_qty = updated_data['store_quantity'] + updated_data['warehouse_quantity']
+                        if total_qty <= self.product.reorder_threshold:
+                            assembly_qty = max(self.product.reorder_threshold - total_qty + 5, 0)  # Order 5 extra
+                            self.todo_manager.create_assembly_task(self.product.id, assembly_qty)
+                            QMessageBox.information(self, 'Success', 
+                                f'Added {add_store} store items and {add_warehouse} warehouse items!\n\nCreated assembly task for {assembly_qty} additional units.')
+                        else:
+                            QMessageBox.information(self, 'Success', 
+                                f'Added {add_store} store items and {add_warehouse} warehouse items!')
                 
             else:  # Adding new product
                 store_qty = self.store_qty_input.value()
@@ -222,7 +231,16 @@ class ProductDialog(QDialog):
                     product_data['store_quantity'] = store_qty
                     product_data['warehouse_quantity'] = warehouse_qty
                     product = self.db.add_product(product_data)
-                    QMessageBox.information(self, 'Success', 'Product created successfully!')
+                    
+                    # Check if initial quantity is below threshold
+                    total_qty = store_qty + warehouse_qty
+                    if total_qty <= product_data['reorder_threshold']:
+                        assembly_qty = max(product_data['reorder_threshold'] - total_qty + 5, 0)  # Order 5 extra
+                        self.todo_manager.create_assembly_task(product.id, assembly_qty)
+                        QMessageBox.information(self, 'Success', 
+                            f'Product created successfully!\n\nCreated assembly task for {assembly_qty} additional units.')
+                    else:
+                        QMessageBox.information(self, 'Success', 'Product created successfully!')
             
             # Check for low stock and create restock tasks if needed
             self.enhanced_manager.check_and_create_restock_tasks()

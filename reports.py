@@ -172,16 +172,17 @@ class ReportsWidget(QWidget):
             self.report_table.setItem(row, 0, QTableWidgetItem(str(product.id)))
             self.report_table.setItem(row, 1, QTableWidgetItem(product.name))
             self.report_table.setItem(row, 2, QTableWidgetItem(product.category or 'Uncategorized'))
-            self.report_table.setItem(row, 3, QTableWidgetItem(str(product.quantity)))
+            total_qty = product.store_quantity + product.warehouse_quantity
+            self.report_table.setItem(row, 3, QTableWidgetItem(f"{total_qty} (S:{product.store_quantity}, W:{product.warehouse_quantity})"))
             
             # Calculate inventory value
-            value = product.quantity * product.purchase_price
+            value = total_qty * product.purchase_price
             self.report_table.setItem(row, 4, QTableWidgetItem(f"₹{value:.2f}"))
             
             # Stock status
-            if product.quantity <= 0:
+            if total_qty <= 0:
                 status = "Out of Stock"
-            elif product.quantity <= product.reorder_threshold:
+            elif total_qty <= product.reorder_threshold:
                 status = "Low Stock"
             else:
                 status = "In Stock"

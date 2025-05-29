@@ -99,26 +99,45 @@ class TodoManager:
         return None
     
     def check_low_stock_and_create_tasks(self):
-        """Check for low stock products and create restock tasks automatically."""
-        low_stock_products = self.db.get_low_stock_products()
+        """Check for low stock products and create restock and assembly tasks automatically."""
         tasks_created = []
         
-        for product in low_stock_products:
-            # Check if there's already a pending restock task for this product
+        # Handle products needing restock from warehouse to store
+        restock_products = self.db.get_products_needing_restock()
+        for product in restock_products:
+            # Check if there's already a pending restock task
             existing_task = self.db.session.query(TodoTask).filter(
                 TodoTask.product_id == product.id,
                 TodoTask.task_type == 'restock',
                 TodoTask.status == 'pending'
             ).first()
             
-            if not existing_task and product.warehouse_quantity > 0:
-                # Calculate how many to move from warehouse to store
+            if not existing_task:
                 needed_in_store = max(product.reorder_threshold - product.store_quantity, 0)
                 available_in_warehouse = product.warehouse_quantity
                 quantity_to_move = min(needed_in_store, available_in_warehouse)
                 
                 if quantity_to_move > 0:
                     task = self.create_restock_task(product.id, quantity_to_move)
+                    if task:
+                        tasks_created.append(task)
+        
+        # Handle products needing assembly/ordering
+        assembly_products = self.db.get_products_needing_assembly()
+        for product in assembly_products:
+            # Check if there's already a pending assembly task
+            existing_task = self.db.session.query(TodoTask).filter(
+                TodoTask.product_id == product.id,
+                TodoTask.task_type == 'assembly',
+                TodoTask.status == 'pending'
+            ).first()
+            
+            if not existing_task:
+                total_quantity = product.store_quantity + product.warehouse_quantity
+                if total_quantity <= product.reorder_threshold:
+                    # Order 5 extra units above the threshold
+                    assembly_qty = max(product.reorder_threshold - total_quantity + 5, 0)
+                    task = self.create_assembly_task(product.id, assembly_qty)
                     if task:
                         tasks_created.append(task)
         
